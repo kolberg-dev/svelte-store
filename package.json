@@ -45,6 +45,7 @@
   },
   "dependencies": {
     "cookie-storage": "^6.1.0",
+    "devalue": "^4.3.0",
     "svelte": "^3.0.0"
   },
   "license": "ISC",

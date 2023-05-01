@@ -1,4 +1,5 @@
-import { get, type Updater, type Readable, writable } from 'svelte/store';
+import * as devalue from "devalue";
+import { get, type Updater, type Readable, writable } from "svelte/store";
 import type {
   AsyncStoreOptions,
   Loadable,
@@ -8,21 +9,21 @@ import type {
   StoresValues,
   WritableLoadable,
   VisitedMap,
-} from './types';
-import { anyReloadable, getStoresArray, reloadAll, loadAll } from '../utils';
-import { flagStoreCreated, getStoreTestingMode, logError } from '../config';
+} from "./types";
+import { anyReloadable, getStoresArray, reloadAll, loadAll } from "../utils";
+import { flagStoreCreated, getStoreTestingMode, logError } from "../config";
 
 // STORES
 
 const getLoadState = (stateString: State): LoadState => {
   return {
-    isLoading: stateString === 'LOADING',
-    isReloading: stateString === 'RELOADING',
-    isLoaded: stateString === 'LOADED',
-    isWriting: stateString === 'WRITING',
-    isError: stateString === 'ERROR',
-    isPending: stateString === 'LOADING' || stateString === 'RELOADING',
-    isSettled: stateString === 'LOADED' || stateString === 'ERROR',
+    isLoading: stateString === "LOADING",
+    isReloading: stateString === "RELOADING",
+    isLoaded: stateString === "LOADED",
+    isWriting: stateString === "WRITING",
+    isError: stateString === "ERROR",
+    isPending: stateString === "LOADING" || stateString === "RELOADING",
+    isSettled: stateString === "LOADED" || stateString === "ERROR",
   };
 };
 
@@ -56,7 +57,7 @@ export const asyncWritable = <S extends Stores, T>(
   const { reloadable, trackState, initial } = options;
 
   const loadState = trackState
-    ? writable<LoadState>(getLoadState('LOADING'))
+    ? writable<LoadState>(getLoadState("LOADING"))
     : undefined;
 
   const setState = (state: State) => loadState?.set(getLoadState(state));
@@ -75,9 +76,9 @@ export const asyncWritable = <S extends Stores, T>(
     try {
       return await mappingLoadFunction(values);
     } catch (e) {
-      if (e.name !== 'AbortError') {
+      if (e.name !== "AbortError") {
         logError(e);
-        setState('ERROR');
+        setState("ERROR");
       }
       throw e;
     }
@@ -113,7 +114,7 @@ export const asyncWritable = <S extends Stores, T>(
       await loadParentStores;
     } catch {
       currentLoadPromise = loadParentStores as Promise<T>;
-      setState('ERROR');
+      setState("ERROR");
       return currentLoadPromise;
     }
 
@@ -122,7 +123,7 @@ export const asyncWritable = <S extends Stores, T>(
     ) as StoresValues<S>;
 
     if (!forceReload) {
-      const newValuesString = JSON.stringify(storeValues);
+      const newValuesString = devalue.uneval(storeValues);
       if (newValuesString === loadedValuesString) {
         // no change, don't generate new promise
         return currentLoadPromise;
@@ -136,21 +137,21 @@ export const asyncWritable = <S extends Stores, T>(
     const loadAndSet = async () => {
       latestLoadAndSet = loadAndSet;
       if (get(loadState)?.isSettled) {
-        setState('RELOADING');
+        setState("RELOADING");
       }
       try {
         const finalValue = await tryLoad(loadInput);
         thisStore.set(finalValue);
-        setState('LOADED');
+        setState("LOADED");
         return finalValue;
       } catch (e) {
         // if a load is aborted, resolve to the current value of the store
-        if (e.name === 'AbortError') {
+        if (e.name === "AbortError") {
           // Normally when a load is aborted we want to leave the state as is.
           // However if the latest load is aborted we change back to LOADED
           // so that it does not get stuck LOADING/RELOADIN'.
           if (loadAndSet === latestLoadAndSet) {
-            setState('LOADED');
+            setState("LOADED");
           }
           return get(thisStore);
         }
@@ -166,7 +167,7 @@ export const asyncWritable = <S extends Stores, T>(
     updater: Updater<T>,
     persist?: boolean
   ) => {
-    setState('WRITING');
+    setState("WRITING");
     let oldValue: T;
     try {
       oldValue = await loadDependenciesThenSet(loadAll);
@@ -195,11 +196,11 @@ export const asyncWritable = <S extends Stores, T>(
         }
       } catch (e) {
         logError(e);
-        setState('ERROR');
+        setState("ERROR");
         throw e;
       }
     }
-    setState('LOADED');
+    setState("LOADED");
   };
 
   // required properties
@@ -216,12 +217,12 @@ export const asyncWritable = <S extends Stores, T>(
     ? async (visitedMap?: VisitedMap) => {
         const visitMap = visitedMap ?? new WeakMap();
         const reloadAndTrackVisits = (stores: S) => reloadAll(stores, visitMap);
-        setState('RELOADING');
+        setState("RELOADING");
         const result = await loadDependenciesThenSet(
           reloadAndTrackVisits,
           reloadable
         );
-        setState('LOADED');
+        setState("LOADED");
         return result;
       }
     : undefined;
@@ -232,7 +233,7 @@ export const asyncWritable = <S extends Stores, T>(
   const reset = getStoreTestingMode()
     ? () => {
         thisStore.set(initial);
-        setState('LOADING');
+        setState("LOADING");
         loadedValuesString = undefined;
         currentLoadPromise = undefined;
       }
@@ -299,7 +300,7 @@ export const asyncDerived = <S extends Stores, T>(
 export const asyncReadable = <T>(
   initial: T,
   loadFunction: () => Promise<T>,
-  options?: Omit<AsyncStoreOptions<T>, 'initial'>
+  options?: Omit<AsyncStoreOptions<T>, "initial">
 ): Loadable<T> => {
   return asyncDerived([], loadFunction, { ...options, initial });
 };
